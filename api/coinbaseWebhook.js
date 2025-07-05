@@ -1,91 +1,76 @@
+// api/coinbaseWebhook.js
+
 const crypto = require('crypto');
 const https = require('https');
 
+const SHOPIFY_STORE = '你的商店名稱'; // 例如：gogetthis040215
+const SHOPIFY_ACCESS_TOKEN = '你的Private App Token';
+const COINBASE_SHARED_SECRET = '你的Coinbase Webhook Secret';
+
 module.exports = async (req, res) => {
-  if (req.method !== 'POST') {
-    return res.status(405).send('Method Not Allowed');
-  }
-
-  // 讀取 Raw Body
-  const rawBody = await new Promise((resolve) => {
-    let data = '';
-    req.on('data', chunk => data += chunk);
-    req.on('end', () => resolve(data));
-  });
-
-  // 驗證簽章
-  const signature = req.headers['x-cc-webhook-signature'];
-  const hmac = crypto.createHmac('sha256', process.env.COINBASE_WEBHOOK_SECRET)
-    .update(rawBody)
-    .digest('hex');
-
- // if (hmac !== signature) {
- //   return res.status(400).send('Invalid signature');
- // }
-
-  // 解析 JSON Payload
-  let payload;
   try {
-    payload = JSON.parse(rawBody);
+    // 驗證 POST
+    if (req.method !== 'POST') {
+      return res.status(405).send('Method Not Allowed');
+    }
+
+    const rawBody = JSON.stringify(req.body);
+    const signature = req.headers['x-cc-webhook-signature'];
+
+    // 驗證 Coinbase 簽名
+    const expectedSignature = crypto
+      .createHmac('sha256', COINBASE_SHARED_SECRET)
+      .update(rawBody)
+      .digest('hex');
+
+    if (signature !== expectedSignature) {
+      console.warn('❌ Invalid signature');
+      return res.status(400).send('Invalid signature');
+    }
+
+    const payload = req.body;
     console.log('[Webhook] Payload:', payload);
-  } catch (err) {
-    return res.status(400).send('Invalid JSON');
-  }
 
-  // 提取訂單資訊
-  const eventType = payload.event?.type;
-  const orderId = payload.data?.metadata?.shopify_order_id;
-  const amount = payload.data?.pricing?.local?.amount;
-  const currency = payload.data?.pricing?.local?.currency;
+    const eventType = payload.event?.type;
+    const orderId = payload.data?.metadata?.shopify_order_id;
+    const amount = payload.data?.pricing?.local?.amount;
+    const currency = payload.data?.pricing?.local?.currency;
 
-  if (eventType !== 'charge:confirmed') {
-    return res.status(200).send('Not a confirmed charge, skipping');
-  }
-
-  if (!orderId || !amount || !currency) {
-    return res.status(400).send('Missing required fields');
-  }
-
-  // 建立 Shopify 交易紀錄
-  const store = process.env.SHOPIFY_STORE; // 例如 'gogetthis04215'
-  const token = process.env.SHOPIFY_API_TOKEN;
-
-  const body = JSON.stringify({
-    transaction: {
-      amount: amount,
-      currency: currency,
-      kind: 'capture' // ⚠️ 關鍵：改為 capture，避免 "sale is not a valid transaction" 錯誤
+    if (eventType !== 'charge:confirmed' || !orderId) {
+      return res.status(200).send('Ignored');
     }
-  });
 
-  const options = {
-    hostname: `${store}.myshopify.com`,
-    path: `/admin/api/2024-04/orders/${orderId}/transactions.json`,
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': token,
-      'Content-Length': Buffer.byteLength(body)
-    }
-  };
+    // 呼叫 Shopify API，標記訂單為已付款
+    const options = {
+      hostname: `${SHOPIFY_STORE}.myshopify.com`,
+      path: `/admin/api/2024-04/orders/${orderId}/close.json`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+      },
+    };
 
-  const response = await new Promise((resolve, reject) => {
-    const reqShopify = https.request(options, resShopify => {
-      let data = '';
-      resShopify.on('data', chunk => data += chunk);
-      resShopify.on('end', () => resolve({ status: resShopify.statusCode, body: data }));
+    const shopifyRes = await new Promise((resolve, reject) => {
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => resolve({ status: res.statusCode, body: data }));
+      });
+
+      req.on('error', reject);
+      req.end(); // 不需要 body
     });
 
-    reqShopify.on('error', reject);
-    reqShopify.write(body);
-    reqShopify.end();
-  });
+    console.log('✅ Shopify 已標記訂單已付款：', {
+      orderId,
+      amount,
+      currency,
+    });
 
-  console.log('Shopify 回傳:', response.body);
-
-  if (response.status >= 200 && response.status < 300) {
-    return res.status(200).send('ok');
-  } else {
-    return res.status(500).send(`Shopify error: ${response.body}`);
+    res.status(200).send('ok');
+  } catch (err) {
+    console.error('❌ Webhook error:', err);
+    res.status(500).send('Internal Server Error');
   }
 };
