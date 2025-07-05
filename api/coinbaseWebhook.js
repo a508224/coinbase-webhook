@@ -3,9 +3,9 @@
 const crypto = require('crypto');
 const https = require('https');
 
-const SHOPIFY_STORE = '你的商店名稱'; // 例如：gogetthis040215
-const SHOPIFY_ACCESS_TOKEN = '你的Private App Token';
-const COINBASE_SHARED_SECRET = '你的Coinbase Webhook Secret';
+const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
+const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+const COINBASE_SHARED_SECRET = process.env.COINBASE_SHARED_SECRET;
 
 module.exports = async (req, res) => {
   try {
