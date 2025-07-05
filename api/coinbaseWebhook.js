@@ -12,14 +12,14 @@ export default async function handler(req, res) {
     req.on('end', () => resolve(data))
   })
 
-  /** 2️⃣ 驗證 Coinbase 簽名 */
-  const sig = req.headers['x-cc-webhook-signature']
-  const hmac = crypto
-    .createHmac('sha256', process.env.COINBASE_WEBHOOK_SECRET)
-    .update(raw)
-    .digest('hex')
+// const sig = req.headers['x-cc-webhook-signature']
+// const hmac = crypto
+//   .createHmac('sha256', process.env.COINBASE_WEBHOOK_SECRET)
+//   .update(raw)
+//   .digest('hex')
 
-  if (sig !== hmac) return res.status(400).send('Invalid signature')
+// if (sig !== hmac) return res.status(400).send('Invalid signature')
+
 
   /** 3️⃣ 解析事件 */
   const payload = JSON.parse(raw)
