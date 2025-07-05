@@ -19,9 +19,9 @@ module.exports = async (req, res) => {
     .update(rawBody)
     .digest('hex');
 
-  if (hmac !== signature) {
-    return res.status(400).send('Invalid signature');
-  }
+ // if (hmac !== signature) {
+ //   return res.status(400).send('Invalid signature');
+ // }
 
   // 解析 JSON Payload
   let payload;
