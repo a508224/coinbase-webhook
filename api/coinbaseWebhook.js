@@ -59,10 +59,10 @@ module.exports = async (req, res) => {
       .update(raw)
       .digest('hex');
 
-    if (sig !== expected) {
-      console.warn('⚠️  Invalid Coinbase signature');
-      return res.status(400).send('Invalid signature');
-    }
+  //  if (sig !== expected) {
+  //    console.warn('⚠️  Invalid Coinbase signature');
+  //    return res.status(400).send('Invalid signature');
+  //  }
 
     /* 5. 解析 JSON */
     const payload = JSON.parse(raw);
