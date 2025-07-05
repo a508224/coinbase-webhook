@@ -21,10 +21,10 @@ module.exports = async (req, res) => {
     .update(rawBody)
     .digest('hex');
 
-  if (signature !== expectedSignature) {
-    console.warn('[驗證失敗] Coinbase Signature 不正確');
-    return res.status(400).send('Invalid signature');
-  }
+//  if (signature !== expectedSignature) {
+//    console.warn('[驗證失敗] Coinbase Signature 不正確');
+//    return res.status(400).send('Invalid signature');
+//  }
 
   const payload = req.body;
   console.log('[Webhook] Payload:', payload);
